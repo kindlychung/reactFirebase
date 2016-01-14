@@ -1,96 +1,47 @@
-var Comment = React.createClass({
-  render: function() {
-    return (
-      <div className="comment">
-        <h4 className="commentAuthor">
-          {this.props.author}
-        </h4>
-        <p>{this.props.comment}</p>
-      </div>
-    );
-  }
-});
+var firebaseData = new Firebase('https://burning-fire-9280.firebaseio.com');
+var commentsDB = firebaseData.child("comments");
 
-var CommentBox = React.createClass({
-  getInitialState: function () {
-    return {data: [], author: "", comment: ""}
-  },
+var getEpoch  = function() {
+  return (new Date()).getTime();
+}
 
-  componentWillMount: function() {
-    this.commentsDB = new Firebase('https://burning-fire-9280.firebaseio.com/comments');
-    this.commentsDB.on("child_added", function(snap) {
-      var nextData = this.state.data.concat(snap.val());
-      this.setState(
-        {data: nextData, comment: ""}
-      )
-    }.bind(this))
-  },
+var epochToDate = function(epoch) {
+  var d = new Date(0);
+  d.setUTCMilliseconds(epoch);
+  return d;
+}
 
-  onAuthorChange: function(e) {
-    e.preventDefault();
-    this.setState({
-      author: e.target.value
-    });
-  },
 
-  onCommentChange: function (e) {
-    e.preventDefault();
-    this.setState({
-      comment: e.target.value
-    });
-  },
-
-  handleSubmit: function (e) {
-    console.log("submit called");
-    this.commentsDB.push({
-      author: this.state.author, comment: this.state.comment, date: getEpoch()
-    })
-  },
-
-  render: function() {
-    return (
-      <div className="commentBox">
-        <h1>Comments</h1>
-        <CommentList data={this.state.data} />
-        <CommentForm onAuthorChange={this.onAuthorChange} onCommentChange={this.onCommentChange} state={this.state}/>
-      </div>
-    );
-  }
-});
-
-var CommentList = React.createClass({
-  render: function() {
-    var commentNodes = this.props.data.map(function(entry) {
-      return (
-        <Comment author={entry.author} comment={entry.comment} key={entry.date}>
-        </Comment>
+var handleCommentKeypress = function (e) {
+  if (e.keyCode == 13) {
+    var author = $("#author-field").val();
+    var comment = $("#comment-field").val();
+    if (author && comment) {
+      var date = new Date();
+      date = date.toString();
+      commentsDB.push(
+        {author: author, comment: comment, date: getEpoch()}
       );
-    });
-    return (
-      <div className="commentList">
-        {commentNodes}
-      </div>
-    );
+    } else {
+      alert("Author and Comment are required fields!");
+    }
   }
+};
+
+commentsDB.on("child_added", function (snap) {
+  var entry = snap.val();
+  var entryLI = $("<li></li>").text(
+    entry.author + ": " + entry.comment + " [ " + epochToDate(entry.date).toString() + " ] "
+  )
+  $("#comments-list").append(entryLI);
+  $("#comment-field").val("");
+})
+
+$("#comment-field").keypress(handleCommentKeypress)
+//$("#author-field").keypress(handleCommentKeypress)
+
+var ref = new Firebase("https://dinosaur-facts.firebaseio.com/dinosaurs");
+ref.orderByChild("height").on("child_added", function (snapshot) {
+  console.log(snapshot.key() + " was " + snapshot.val().height + " meters tall");
 });
-
-var CommentForm = React.createClass({
-  render: function() {
-    return (
-      <form onSubmit={this.props.handleSubmit}>
-        <input id="author-field" onChange={this.props.onAuthorChange} value={this.props.state.author} />
-        <input id="comment-field" onChange={this.props.onCommentChange} value={this.props.state.comment} />
-      </form>
-    );
-  }
-});
-
-
-
-
-ReactDOM.render(
-  <CommentBox />,
-  document.getElementById('content')
-);
-
 
